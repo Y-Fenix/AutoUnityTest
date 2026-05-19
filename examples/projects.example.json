@@ -1,0 +1,32 @@
+{
+  "selected_project_id": "example-project",
+  "projects": [
+    {
+      "id": "example-project",
+      "name": "ExampleProject",
+      "runner_kind": "wordgroup_builtin",
+      "project_path": "/path/to/UnityProject",
+      "unity_path": "",
+      "webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook",
+      "timeout_seconds": "1800",
+      "process_timeout_seconds": "0",
+      "keep_runner": false,
+      "git_repo_path": "/path/to/git/repo",
+      "git_remote": "origin",
+      "git_branch": "dev",
+      "poll_seconds": "30",
+      "watch_patterns": "LevelData/**/*.csv\nAssets/Resources/Config/Localization/**/*.asset",
+      "ignore_patterns": "",
+      "send_after_run": true,
+      "method_config": "YourValidator.RunConfigCheck",
+      "method_language": "YourValidator.RunLanguageCheck",
+      "method_image": "YourValidator.RunImageCheck",
+      "report_config": "config_report.txt",
+      "report_language": "language_report.txt",
+      "report_image": "image_report.txt",
+      "run_command": "",
+      "send_command": ""
+    }
+  ]
+}
+

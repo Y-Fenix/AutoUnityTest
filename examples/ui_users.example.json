@@ -1,0 +1,15 @@
+{
+  "users": [
+    {
+      "username": "team",
+      "password": "change-me-readonly",
+      "role": "readonly"
+    },
+    {
+      "username": "admin",
+      "password": "change-me-admin",
+      "role": "admin"
+    }
+  ]
+}
+

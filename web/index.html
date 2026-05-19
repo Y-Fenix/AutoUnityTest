@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>配置检测项目监控台</title>
+  <link rel="icon" type="image/png" sizes="any" href="/监控.png?v=20260518-shiba">
+  <link rel="shortcut icon" href="/favicon.ico?v=20260518-shiba">
+  <style>
+    :root {
+      color-scheme: light;
+      --left-col: 340px;
+      --right-col: 360px;
+      --bg: #f3f6fb;
+      --bg-rgb: 243, 246, 251;
+      --brand: #0b4f9f;
+      --brand-deep: #082d63;
+      --panel: rgba(255, 255, 255, 0.92);
+      --panel-strong: #ffffff;
+      --line: #d7dde7;
+      --line-strong: #c4ccd8;
+      --text: #172033;
+      --muted: #667085;
+      --accent: #0f6fff;
+      --accent-strong: #0b5bd3;
+      --ok: #12715b;
+      --warn: #b36a00;
+      --bad: #c43d33;
+      --shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    }
+    .shell {
+      width: min(95vw, 1920px);
+      margin: 0 auto;
+      padding: 22px;
+    }
+    .sticky-summary {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      margin: -22px 0 16px;
+      padding: 18px 18px 12px;
+      border-radius: 0 0 14px 14px;
+      background:
+        linear-gradient(135deg, rgba(8, 45, 99, 0.99) 0%, rgba(12, 78, 157, 0.98) 58%, rgba(20, 104, 212, 0.95) 100%);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 42px rgba(8, 38, 84, 0.24);
+    }
+    .sticky-summary::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -34px;
+      height: 36px;
+      pointer-events: none;
+      background: linear-gradient(
+        180deg,
+        rgba(15, 45, 96, 0.18) 0%,
+        rgba(15, 45, 96, 0.07) 42%,
+        rgba(15, 23, 42, 0) 100%
+      );
+      filter: blur(16px);
+    }
+    .sticky-summary h1 {
+      color: #fff;
+      font-size: 24px;
+    }
+    .sticky-summary .subtitle {
+      color: rgba(231, 240, 255, 0.82);
+      margin-top: 5px;
+      font-size: 12px;
+    }
+    .sticky-summary .toolbar button {
+      border-color: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.92);
+      color: #103159;
+      box-shadow: 0 8px 18px rgba(8, 42, 91, 0.12);
+    }
+    .sticky-summary .toolbar button.warn {
+      border-color: rgba(255, 195, 109, 0.72);
+      color: #a85c00;
+      background: #fff7ed;
+    }
+    .sticky-summary .toolbar button.primary {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: #2f7cff;
+      color: #fff;
+    }
+    .sticky-summary .stat {
+      border-color: rgba(205, 221, 247, 0.42);
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 14px 30px rgba(7, 34, 73, 0.16);
+      min-height: 74px;
+      padding: 11px 14px;
+    }
+    .sticky-summary .stat label {
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .sticky-summary .stat-value {
+      font-size: 17px;
+    }
+    .sticky-summary .stat-meta {
+      margin-top: 4px;
+      font-size: 11px;
+    }
+    .sticky-summary .overview {
+      grid-template-columns: minmax(290px, 0.95fr) minmax(320px, 1.15fr) minmax(230px, 0.7fr);
+    }
+    .sticky-summary .overview-middle {
+      display: block;
+    }
+    .sticky-summary .overview-middle .stat:nth-child(2) {
+      display: none;
+    }
+    .sticky-summary .mini-badge {
+      min-height: 20px;
+      padding: 0 7px;
+      font-size: 10px;
+    }
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .topbar-main {
+      grid-column: 1;
+      min-width: 0;
+    }
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+      font-weight: 700;
+    }
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 6px;
+      justify-content: flex-end;
+      grid-column: 2;
+      justify-self: end;
+      align-self: start;
+      overflow: visible;
+      min-width: 0;
+    }
+    .toolbar button {
+      padding: 0 10px;
+      white-space: nowrap;
+    }
+    button, select {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-strong);
+      color: var(--text);
+      font: inherit;
+    }
+    button {
+      padding: 0 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+    button:hover { border-color: var(--line-strong); }
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    button.primary:hover {
+      background: var(--accent-strong);
+      border-color: var(--accent-strong);
+    }
+    button.warn {
+      border-color: #f0c48d;
+      color: var(--warn);
+      background: #fff9f0;
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .overview {
+      display: grid;
+      grid-template-columns: var(--left-col) minmax(0, 1fr) var(--right-col);
+      gap: 12px;
+      margin-bottom: 0;
+    }
+    .overview-middle {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      min-width: 0;
+    }
+    .stat, .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+    .stat {
+      min-height: 86px;
+      padding: 13px 16px;
+    }
+    .stat label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .stat-value.ok { color: var(--ok); }
+    .stat-value.warn { color: var(--warn); }
+    .stat-value.bad { color: var(--bad); }
+    .stat-meta {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .stat-meta.compact {
+      display: grid;
+      gap: 4px;
+      line-height: 1.35;
+    }
+    .stat-accent {
+      border-color: rgba(15, 111, 255, 0.16);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 250, 255, 0.95) 100%);
+    }
+    .stat-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .stat-top-main {
+      min-width: 0;
+      flex: 1;
+    }
+    .stat-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 26px;
+    }
+    .stat-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+    .mini-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(15, 111, 255, 0.15);
+      background: rgba(15, 111, 255, 0.06);
+      color: #31507b;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .mini-badge.neutral {
+      border-color: rgba(102, 112, 133, 0.18);
+      background: rgba(102, 112, 133, 0.07);
+      color: #4c5c75;
+    }
+    .stat-path {
+      margin-top: 7px;
+      color: #4c5c75;
+      font-size: 12px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: var(--left-col) minmax(0, 1fr) var(--right-col);
+      gap: 14px;
+      align-items: stretch;
+      height: clamp(820px, calc(100vh - 150px), 1320px);
+      min-height: 0;
+    }
+    .column {
+      min-height: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding-right: 4px;
+      overflow: hidden;
+    }
+    .column::-webkit-scrollbar,
+    .project-list::-webkit-scrollbar,
+    .panel-scroll::-webkit-scrollbar,
+    .logs::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    .column::-webkit-scrollbar-thumb,
+    .project-list::-webkit-scrollbar-thumb,
+    .panel-scroll::-webkit-scrollbar-thumb,
+    .logs::-webkit-scrollbar-thumb {
+      background: rgba(122, 136, 167, 0.32);
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.85);
+    }
+    .column::-webkit-scrollbar-track,
+    .project-list::-webkit-scrollbar-track,
+    .panel-scroll::-webkit-scrollbar-track,
+    .logs::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .panel {
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+    .panel.fill-panel {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid rgba(215, 221, 231, 0.7);
+    }
+    .panel-head h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .panel-head .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .panel-body {
+      padding: 14px 16px 16px;
+    }
+    .action-panel .panel-head {
+      padding: 12px 16px 9px;
+    }
+    .action-panel .panel-body {
+      padding: 10px 16px 14px;
+    }
+    .action-toolbar {
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .action-toolbar button {
+      min-height: 32px;
+    }
+    .panel-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 16px 16px;
+    }
+    .form-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 16px 16px;
+    }
+    .project-list, .event-list, .commit-list {
+      display: grid;
+      gap: 10px;
+    }
+    .event-list {
+      gap: 8px;
+    }
+    .project-list {
+      --project-row-height: 86px;
+      max-height: calc(var(--project-row-height) * 3 + 24px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 2px 4px 2px 0;
+    }
+    .project-item, .event-item, .commit-item {
+      padding: 12px 13px;
+      border: 1px solid rgba(215, 221, 231, 0.72);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.78);
+    }
+    .event-item {
+      position: relative;
+      padding: 11px 12px 11px 18px;
+    }
+    .event-item::before {
+      content: "";
+      position: absolute;
+      top: 18px;
+      left: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #8a96aa;
+      box-shadow: 0 0 0 3px rgba(138, 150, 170, 0.12);
+    }
+    .event-item.success::before { background: var(--ok); box-shadow: 0 0 0 3px rgba(18, 113, 91, 0.12); }
+    .event-item.warn::before { background: var(--warn); box-shadow: 0 0 0 3px rgba(179, 106, 0, 0.12); }
+    .event-item.error::before { background: var(--bad); box-shadow: 0 0 0 3px rgba(196, 61, 51, 0.12); }
+    .event-item.info::before { background: var(--accent); box-shadow: 0 0 0 3px rgba(15, 111, 255, 0.12); }
+    .project-item {
+      min-height: var(--project-row-height);
+      cursor: pointer;
+      transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
+    }
+    .project-item:hover {
+      border-color: rgba(15, 111, 255, 0.28);
+      background: rgba(255, 255, 255, 0.92);
+    }
+    .project-item.active {
+      border-color: rgba(15, 111, 255, 0.44);
+      background: rgba(15, 111, 255, 0.08);
+    }
+    .item-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .item-title {
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+    .item-time {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .item-detail, .item-files, .project-meta {
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .event-item .item-detail {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .event-item .item-files {
+      max-height: 54px;
+      overflow: hidden;
+      margin-top: 7px;
+      padding-top: 7px;
+      border-top: 1px solid rgba(215, 221, 231, 0.55);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      line-height: 1.45;
+    }
+    .form-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field.two {
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .column-left .field.two {
+      grid-template-columns: 1fr;
+    }
+    .field label, .check label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.94);
+      color: var(--text);
+      font: inherit;
+      padding: 9px 11px;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: rgba(15, 111, 255, 0.55);
+      box-shadow: 0 0 0 3px rgba(15, 111, 255, 0.12);
+    }
+    textarea {
+      min-height: 84px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+    select {
+      padding: 0 11px;
+      outline: none;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .check input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      padding: 0;
+    }
+    .config-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 4px;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .section-toggle {
+      display: none;
+    }
+    .section-toggle.visible {
+      display: grid;
+      gap: 12px;
+    }
+    .reports {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .report-card {
+      padding: 14px;
+      border: 1px solid rgba(215, 221, 231, 0.72);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.82);
+      min-height: 168px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .report-card h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .report-meta {
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .report-lines {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 7px;
+    }
+    .report-lines li.good { color: var(--ok); }
+    .report-lines li.bad { color: var(--bad); }
+    .logs {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 16px 16px;
+      background: rgba(249, 251, 253, 0.96);
+      font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.84);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .status-chip.ok { color: var(--ok); border-color: rgba(18, 113, 91, 0.25); background: rgba(18, 113, 91, 0.09); }
+    .status-chip.warn { color: var(--warn); border-color: rgba(179, 106, 0, 0.22); background: rgba(179, 106, 0, 0.08); }
+    .status-chip.bad { color: var(--bad); border-color: rgba(196, 61, 51, 0.2); background: rgba(196, 61, 51, 0.08); }
+    .status-chip.info { color: var(--text); }
+    @media (max-width: 1240px) {
+      .topbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topbar-main,
+      .toolbar {
+        grid-column: 1 / -1;
+      }
+      .toolbar {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        overflow: visible;
+      }
+      .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .overview-middle {
+        grid-column: 1 / -1;
+      }
+      .layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        height: auto;
+        min-height: auto;
+      }
+      .column {
+        height: auto;
+        overflow: visible;
+        padding-right: 0;
+      }
+      .panel.fill-panel,
+      .logs,
+      .panel-scroll,
+      .form-scroll {
+        min-height: auto;
+      }
+      .column-center, .column-right {
+        grid-column: 1 / -1;
+      }
+      .reports { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .shell { padding: 14px; }
+      .topbar { grid-template-columns: 1fr; }
+      .toolbar {
+        flex-wrap: wrap;
+      }
+      .overview { grid-template-columns: 1fr; }
+      .overview-middle { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr; }
+      .column-center, .column-right { grid-column: auto; }
+      .stat-top { flex-direction: column; }
+      .stat-badges { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="sticky-summary">
+      <header class="topbar">
+        <div class="topbar-main">
+          <h1>配置检测项目监控台</h1>
+          <div class="subtitle" id="subtitle">正在读取项目状态...</div>
+        </div>
+        <div class="toolbar">
+          <button id="addProjectBtn">新增项目</button>
+          <button id="deleteProjectBtn" class="warn">删除当前项目</button>
+          <button id="startAllBtn">启动全部</button>
+          <button id="stopAllBtn">停止全部</button>
+          <button id="saveBtn" class="primary">保存当前项目</button>
+        </div>
+      </header>
+
+      <section class="overview">
+        <article class="stat stat-accent">
+          <label>当前项目</label>
+          <div class="stat-top">
+            <div class="stat-top-main">
+              <div class="stat-title-row">
+                <div class="stat-value" id="projectTitle">-</div>
+              </div>
+              <div class="stat-path" id="projectMeta">-</div>
+            </div>
+            <div class="stat-badges" id="projectBadges"></div>
+          </div>
+        </article>
+        <div class="overview-middle">
+          <article class="stat">
+            <label>监听状态</label>
+            <div class="stat-value" id="monitorState">-</div>
+            <div class="stat-meta compact" id="monitorMeta">-</div>
+          </article>
+          <article class="stat">
+            <label>最近触发</label>
+            <div class="stat-value" id="triggerCommit">-</div>
+            <div class="stat-meta compact" id="triggerMeta">-</div>
+          </article>
+        </div>
+        <article class="stat">
+          <label>执行任务</label>
+          <div class="stat-value" id="jobState">-</div>
+          <div class="stat-meta compact" id="jobMeta">-</div>
+        </article>
+      </section>
+    </section>
+
+    <section class="layout">
+      <section class="column column-left">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>项目列表</h2>
+            <div class="meta" id="projectCountMeta">-</div>
+          </div>
+          <div class="panel-body">
+            <div class="project-list" id="projectList"></div>
+          </div>
+        </article>
+
+        <article class="panel fill-panel">
+          <div class="panel-head">
+            <h2>当前项目参数</h2>
+            <div class="meta" id="diagnosticsBadge">等待自检</div>
+          </div>
+          <div class="form-scroll">
+            <input id="id" type="hidden">
+            <div class="form-grid">
+              <div class="field">
+                <label for="name">项目名称</label>
+                <input id="name" type="text" placeholder="例如：WordGroup">
+              </div>
+              <div class="field two">
+                <div class="field">
+                  <label for="runner_kind">触发方式</label>
+                  <select id="runner_kind">
+                    <option value="wordgroup_builtin">Unity 内建检测</option>
+                    <option value="shell_command">自定义命令</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="poll_seconds">轮询间隔（秒）</label>
+                  <input id="poll_seconds" type="number" min="10" step="5">
+                </div>
+              </div>
+              <div class="field">
+                <label for="git_repo_path">Git 仓库路径</label>
+                <input id="git_repo_path" type="text" placeholder="/Users/you/Project">
+              </div>
+              <div class="field two">
+                <div class="field">
+                  <label for="git_remote">远端名</label>
+                  <input id="git_remote" type="text" placeholder="origin">
+                </div>
+                <div class="field">
+                  <label for="git_branch">分支</label>
+                  <input id="git_branch" type="text" placeholder="main">
+                </div>
+              </div>
+              <div class="hint">远端留空时只监听本地分支；填写远端名时会定时 fetch 对应分支，适合在本机观察别人提交。</div>
+              <div class="field">
+                <label for="watch_patterns">文件监听规则</label>
+                <textarea id="watch_patterns" placeholder="每行一个 glob，例如：&#10;LevelData/*.csv&#10;Assets/Resources/Config/Localization/*.asset"></textarea>
+              </div>
+              <div class="field">
+                <label for="ignore_patterns">忽略规则</label>
+                <textarea id="ignore_patterns" placeholder="可选，每行一个 glob"></textarea>
+              </div>
+
+              <section id="builtinSection" class="section-toggle">
+                <div class="field">
+                  <label for="project_path">Unity 工程路径</label>
+                  <input id="project_path" type="text" placeholder="/Users/you/Project/ProjectName">
+                </div>
+                <div class="field">
+                  <label for="unity_path">Unity 可执行文件</label>
+                  <input id="unity_path" type="text" placeholder="/Applications/Unity/Hub/Editor/.../Unity">
+                </div>
+                <div class="field">
+                  <label for="webhook">飞书 Webhook</label>
+                  <input id="webhook" type="text" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+                </div>
+                <div class="field">
+                  <label for="method_config">规则检测方法</label>
+                  <input id="method_config" type="text" placeholder="例如：WordSotaLevelValidator.RunTestConfigDetection">
+                </div>
+                <div class="field">
+                  <label for="method_language">语言检测方法</label>
+                  <input id="method_language" type="text" placeholder="例如：WordSotaLevelValidator.RunTestLanguageDetection">
+                </div>
+                <div class="field">
+                  <label for="method_image">图片检测方法</label>
+                  <input id="method_image" type="text" placeholder="例如：WordSotaLevelValidator.RunTestImageDetection">
+                </div>
+                <div class="field two">
+                  <div class="field">
+                    <label for="timeout_seconds">单次检测超时（秒）</label>
+                    <input id="timeout_seconds" type="number" min="60" step="60">
+                  </div>
+                  <div class="field">
+                    <label for="process_timeout_seconds">进程总超时（秒）</label>
+                    <input id="process_timeout_seconds" type="number" min="0" step="60">
+                  </div>
+                </div>
+                <div class="check">
+                  <input id="send_after_run" type="checkbox">
+                  <label for="send_after_run">检测结束后自动发送飞书</label>
+                </div>
+              </section>
+
+              <section id="commandSection" class="section-toggle">
+                <div class="field">
+                  <label for="run_command">运行命令</label>
+                  <textarea id="run_command" placeholder="例如：&#10;python3 tools/config_check.py run"></textarea>
+                </div>
+                <div class="field">
+                  <label for="send_command">发送命令（可选）</label>
+                  <textarea id="send_command" placeholder="例如：&#10;python3 tools/config_check.py send"></textarea>
+                </div>
+                <div class="hint">命令会在 Git 仓库目录下通过 <code>zsh -lc</code> 执行，可用变量：<code>{git_repo_path}</code>、<code>{project_path}</code>、<code>{commit}</code>、<code>{files}</code>。</div>
+              </section>
+
+              <div class="config-actions">
+                <span class="status-chip info" id="saveState">未修改</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="column column-center">
+        <article class="panel action-panel">
+          <div class="panel-head">
+            <h2>当前项目操作</h2>
+            <div class="meta" id="actionMeta">-</div>
+          </div>
+          <div class="panel-body">
+            <div class="toolbar action-toolbar">
+              <button id="baselineBtn">设为当前基线</button>
+              <button id="runBtn" class="primary">立即检查</button>
+              <button id="runSendBtn">检查并发送</button>
+              <button id="sendBtn">发送</button>
+              <button id="checkBtn">检查 Git</button>
+              <button id="toggleMonitorBtn">开始监听</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>最近命中</h2>
+            <div class="meta" id="pendingMeta">-</div>
+          </div>
+          <div class="panel-body">
+            <div class="commit-list" id="commitList"></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>结果汇总</h2>
+            <div class="meta" id="summaryMeta">-</div>
+          </div>
+          <div class="panel-body">
+            <div class="reports" id="reports"></div>
+          </div>
+        </article>
+
+        <article class="panel fill-panel">
+          <div class="panel-head">
+            <h2>实时日志</h2>
+            <div class="meta" id="logMeta">-</div>
+          </div>
+          <div class="logs" id="logs">等待操作...</div>
+        </article>
+      </section>
+
+      <section class="column column-right">
+        <article class="panel fill-panel">
+          <div class="panel-head">
+            <h2>最近事件</h2>
+            <div class="meta" id="eventMeta">-</div>
+          </div>
+          <div class="panel-scroll">
+            <div class="event-list" id="eventList"></div>
+          </div>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const fields = [
+      'id',
+      'name',
+      'runner_kind',
+      'git_repo_path',
+      'git_remote',
+      'git_branch',
+      'poll_seconds',
+      'watch_patterns',
+      'ignore_patterns',
+      'project_path',
+      'unity_path',
+      'webhook',
+      'method_config',
+      'method_language',
+      'method_image',
+      'timeout_seconds',
+      'process_timeout_seconds',
+      'send_after_run',
+      'run_command',
+      'send_command'
+    ];
+
+    const saveBtn = document.getElementById('saveBtn');
+    const addProjectBtn = document.getElementById('addProjectBtn');
+    const deleteProjectBtn = document.getElementById('deleteProjectBtn');
+    const startAllBtn = document.getElementById('startAllBtn');
+    const stopAllBtn = document.getElementById('stopAllBtn');
+    const baselineBtn = document.getElementById('baselineBtn');
+    const checkBtn = document.getElementById('checkBtn');
+    const toggleMonitorBtn = document.getElementById('toggleMonitorBtn');
+    const runBtn = document.getElementById('runBtn');
+    const runSendBtn = document.getElementById('runSendBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const saveState = document.getElementById('saveState');
+    const subtitle = document.getElementById('subtitle');
+    const logs = document.getElementById('logs');
+
+    let appState = null;
+    let localSelectedProjectId = '';
+    let formHydrated = false;
+    let formDirty = false;
+
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, s => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[s]));
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || JSON.stringify(data));
+      }
+      return data;
+    }
+
+    function unpackState(payload) {
+      if (payload && payload.state) {
+        if (payload.auth) payload.state.auth = payload.auth;
+        return payload.state;
+      }
+      return payload;
+    }
+
+    function selectedProjectId() {
+      return localSelectedProjectId || (appState && appState.selected_project_id) || '';
+    }
+
+    function canWrite() {
+      return !!(appState && appState.auth && appState.auth.can_write);
+    }
+
+    function fieldValue(id, value) {
+      const node = document.getElementById(id);
+      if (!node) return;
+      if (node.type === 'checkbox') {
+        node.checked = !!value;
+      } else {
+        node.value = value ?? '';
+      }
+    }
+
+    function collectSettings() {
+      const data = {};
+      for (const id of fields) {
+        const node = document.getElementById(id);
+        data[id] = node.type === 'checkbox' ? node.checked : node.value.trim();
+      }
+      return data;
+    }
+
+    function markDirty() {
+      formDirty = true;
+      saveState.textContent = '当前项目有未保存修改';
+      saveState.className = 'status-chip warn';
+    }
+
+    function updateModeSections() {
+      const mode = document.getElementById('runner_kind').value;
+      document.getElementById('builtinSection').className = mode === 'wordgroup_builtin' ? 'section-toggle visible' : 'section-toggle';
+      document.getElementById('commandSection').className = mode === 'shell_command' ? 'section-toggle visible' : 'section-toggle';
+    }
+
+    function hydrateSelected(selected) {
+      const profile = selected.profile || {};
+      if (formDirty && document.activeElement && document.activeElement.tagName !== 'BUTTON') return;
+      for (const id of fields) fieldValue(id, profile[id]);
+      formHydrated = true;
+      formDirty = false;
+      saveState.textContent = '当前项目已保存';
+      saveState.className = 'status-chip ok';
+      updateModeSections();
+    }
+
+    function monitorStateLabel(monitor) {
+      if (monitor.enabled && monitor.checking) return ['检查中', 'warn'];
+      if (monitor.enabled) return ['监听中', 'ok'];
+      if (monitor.last_error) return ['已停止', 'bad'];
+      return ['未启动', 'info'];
+    }
+
+    function jobStateLabel(job) {
+      if (job.running) return ['运行中', 'warn'];
+      if (job.exit_code === 0) return ['已完成', 'ok'];
+      if (job.exit_code) return ['失败', 'bad'];
+      return ['空闲', 'info'];
+    }
+
+    function shortCommit(value) {
+      return value ? value.slice(0, 8) : '-';
+    }
+
+    function summarizeProjectError(errorText, remote, branch) {
+      const text = String(errorText || '').trim();
+      if (!text) return '';
+      const watchRef = remote && branch ? `${remote}/${branch}` : (branch || '');
+      if (text.includes('rev-parse') && text.includes('returned non-zero exit status 128')) {
+        return watchRef ? `Git 分支不存在：${watchRef}` : 'Git 分支不存在';
+      }
+      if (text.includes('timed out')) {
+        return 'Git 检查超时';
+      }
+      if (text.includes('Authentication failed') || text.includes('could not read Username')) {
+        return 'Git 鉴权失败';
+      }
+      return text.length > 36 ? `${text.slice(0, 36)}...` : text;
+    }
+
+    function renderMetaLines(id, lines, emptyText) {
+      const node = document.getElementById(id);
+      const items = (lines || []).filter(Boolean);
+      if (!items.length) {
+        node.textContent = emptyText;
+        return;
+      }
+      node.innerHTML = items.map(item => `<div>${esc(item)}</div>`).join('');
+    }
+
+    function renderProjects(projects, selectedId) {
+      const node = document.getElementById('projectList');
+      document.getElementById('projectCountMeta').textContent = `${projects.length} 个项目`;
+      if (!projects.length) {
+        node.innerHTML = '<div class="empty">还没有项目。</div>';
+        return;
+      }
+      node.innerHTML = projects.map(project => {
+        const selectedClass = project.id === selectedId ? ' active' : '';
+        const remote = (project.git_remote || '').trim();
+        const branch = (project.git_branch || '').trim() || 'HEAD';
+        const stateText = project.enabled ? (project.checking ? '检查中' : '监听中') : (project.last_error ? '异常' : '未启动');
+        const errorText = summarizeProjectError(project.last_error, remote, branch);
+        return `
+          <article class="project-item${selectedClass}" data-id="${esc(project.id)}">
+            <div class="item-top">
+              <div class="item-title">${esc(project.name || '-')}</div>
+              <div class="item-time">${esc(stateText)}</div>
+            </div>
+            <div class="project-meta">${esc(project.runner_kind === 'shell_command' ? '自定义命令' : '内建检测')}</div>
+            <div class="project-meta">${esc(remote ? `${remote}/${branch}` : `本地 ${branch}`)}</div>
+            ${errorText ? `<div class="project-meta">${esc(errorText)}</div>` : ''}
+          </article>
+        `;
+      }).join('');
+
+      for (const item of node.querySelectorAll('.project-item')) {
+        item.addEventListener('click', async () => {
+          const id = item.getAttribute('data-id');
+          if (!id || id === selectedProjectId()) return;
+          if (formDirty && !window.confirm('当前项目有未保存修改，仍然切换吗？')) return;
+          localSelectedProjectId = id;
+          refresh();
+        });
+      }
+    }
+
+    function renderOverview(selected, job) {
+      const monitor = selected.monitor || {};
+      const settings = monitor.settings || {};
+      const [monitorText, monitorKind] = monitorStateLabel(monitor);
+      const [jobText, jobKind] = jobStateLabel(job);
+      const remote = (settings.git_remote || '').trim();
+      const branch = (settings.git_branch || '').trim() || 'HEAD';
+      const watchRef = monitor.watch_ref || (remote ? `${remote}/${branch}` : `本地 ${branch}`);
+      const modeText = settings.runner_kind === 'shell_command' ? '自定义命令模式' : 'Unity 内建检测';
+
+      subtitle.textContent = settings.git_repo_path
+        ? `${settings.git_repo_path}  ·  ${modeText}`
+        : '请先配置一个项目';
+
+      document.getElementById('projectTitle').textContent = settings.name || '-';
+      document.getElementById('projectMeta').textContent = watchRef;
+      document.getElementById('projectBadges').innerHTML = [
+        `<span class="mini-badge">${esc(settings.runner_kind === 'shell_command' ? '自定义命令' : '内建检测')}</span>`,
+        `<span class="mini-badge neutral">${esc(appState && appState.auth && appState.auth.role === 'admin' ? '管理权限' : '只读权限')}</span>`
+      ].join('');
+      document.getElementById('monitorState').textContent = monitorText;
+      document.getElementById('monitorState').className = `stat-value ${monitorKind}`;
+      renderMetaLines('monitorMeta', [
+        `跟踪 ${watchRef}`,
+        monitor.checking && '正在执行手动检查',
+        monitor.last_check_at && `上次检查 ${monitor.last_check_at}`,
+        monitor.last_error && `错误：${monitor.last_error}`
+      ], '等待启动');
+
+      document.getElementById('triggerCommit').textContent = monitor.last_triggered_commit
+        ? shortCommit(monitor.last_triggered_commit)
+        : '-';
+      renderMetaLines('triggerMeta', monitor.last_triggered_at ? [
+        `触发时间 ${monitor.last_triggered_at}`,
+        `${monitor.last_match_files.length} 个命中文件`
+      ] : [], '暂无自动触发');
+
+      document.getElementById('jobState').textContent = jobText;
+      document.getElementById('jobState').className = `stat-value ${jobKind}`;
+      renderMetaLines('jobMeta', [
+        job.project_name && `项目 ${job.project_name}`,
+        job.started_at && `开始 ${job.started_at}`,
+        job.finished_at && `结束 ${job.finished_at}`
+      ], '等待运行');
+
+      document.getElementById('diagnosticsBadge').textContent = selected.diagnostics && selected.diagnostics.command_error
+        ? '命令未就绪'
+        : '环境已就绪';
+      document.getElementById('eventMeta').textContent = `${(monitor.events || []).length} 条`;
+      document.getElementById('pendingMeta').textContent = monitor.pending_trigger ? '存在等待任务' : '暂无等待任务';
+      document.getElementById('summaryMeta').textContent = selected.summary && selected.summary.generated_at
+        ? `生成于 ${selected.summary.generated_at}`
+        : '等待执行';
+      document.getElementById('logMeta').textContent = job.running ? '日志持续刷新中' : '最近一次执行结果';
+      const roleText = appState && appState.auth
+        ? `${appState.auth.username || 'anonymous'} · ${appState.auth.role === 'admin' ? '管理权限' : '只读权限'}`
+        : '未认证';
+      document.getElementById('actionMeta').textContent = `${settings.runner_kind === 'shell_command'
+        ? '立即运行/运行并发送会执行自定义命令，检查 Git 只同步提交状态'
+        : '立即检查会执行当前项目检测，检查 Git 只同步提交状态'} · ${roleText}`;
+
+      toggleMonitorBtn.textContent = monitor.enabled ? '停止监听' : '开始监听';
+      toggleMonitorBtn.className = monitor.enabled ? 'warn' : '';
+      checkBtn.textContent = monitor.checking ? '检查 Git...' : '检查 Git';
+      runBtn.textContent = settings.runner_kind === 'shell_command' ? '立即运行' : '立即检查';
+      runSendBtn.textContent = settings.runner_kind === 'shell_command' ? '运行并发送' : '检查并发送';
+      const writable = canWrite();
+      toggleMonitorBtn.disabled = monitor.checking || !writable;
+      checkBtn.disabled = monitor.checking || !writable;
+      baselineBtn.disabled = monitor.checking || !writable;
+      runBtn.disabled = job.running || !writable;
+      runSendBtn.disabled = job.running || !writable;
+      sendBtn.disabled = job.running || !writable;
+      deleteProjectBtn.disabled = !writable || !appState || !appState.projects || appState.projects.length <= 1;
+      addProjectBtn.disabled = !writable;
+      startAllBtn.disabled = !writable;
+      stopAllBtn.disabled = !writable;
+      saveBtn.disabled = !writable;
+      for (const id of fields) {
+        const node = document.getElementById(id);
+        if (node) node.disabled = !writable;
+      }
+    }
+
+    function eventLevelClass(level) {
+      const value = String(level || '').toLowerCase();
+      if (value === 'success') return 'success';
+      if (value === 'warn' || value === 'warning') return 'warn';
+      if (value === 'error' || value === 'bad') return 'error';
+      return 'info';
+    }
+
+    function renderEvents(monitor) {
+      const node = document.getElementById('eventList');
+      const items = [...(monitor.events || [])].reverse().slice(0, 16);
+      if (!items.length) {
+        node.innerHTML = '<div class="empty">还没有监听事件。</div>';
+        return;
+      }
+      node.innerHTML = items.map(item => {
+        const files = item.files || [];
+        const visibleFiles = files.slice(0, 4);
+        const moreFiles = files.length > visibleFiles.length ? `等 ${files.length} 个文件` : '';
+        return `
+        <article class="event-item ${eventLevelClass(item.level)}">
+          <div class="item-top">
+            <div class="item-title">${esc(item.title || '-')}</div>
+            <div class="item-time">${esc(item.time || '-')}</div>
+          </div>
+          ${item.detail ? `<div class="item-detail">${esc(item.detail)}</div>` : ''}
+          ${visibleFiles.length ? `<div class="item-files">${visibleFiles.map(esc).join('<br>')}${moreFiles ? `<br>${esc(moreFiles)}` : ''}</div>` : ''}
+        </article>
+      `;
+      }).join('');
+    }
+
+    function renderCommitPanel(monitor) {
+      const node = document.getElementById('commitList');
+      const entries = [];
+      if (monitor.pending_trigger) entries.push({ title: '等待中的命中提交', data: monitor.pending_trigger });
+      if (monitor.last_triggered_commit) {
+        entries.push({
+          title: '最近已触发提交',
+          data: {
+            commit: monitor.last_triggered_commit,
+            short_commit: shortCommit(monitor.last_triggered_commit),
+            subject: '',
+            files: monitor.last_match_files || [],
+            date: monitor.last_triggered_at || ''
+          }
+        });
+      }
+      if (!entries.length) {
+        node.innerHTML = '<div class="empty">命中文件提交后，这里会显示最近一次触发记录。</div>';
+        return;
+      }
+      node.innerHTML = entries.map(entry => {
+        const data = entry.data || {};
+        const subject = data.subject || '';
+        const files = data.files || [];
+        return `
+          <article class="commit-item">
+            <div class="item-top">
+              <div class="item-title">${esc(entry.title)}</div>
+              <div class="item-time">${esc(data.date || '')}</div>
+            </div>
+            <div class="item-detail">${esc(data.short_commit || shortCommit(data.commit || ''))} ${esc(subject)}</div>
+            <div class="item-files">${files.length ? files.slice(0, 8).map(esc).join('<br>') : '暂无文件列表'}</div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderReports(summary) {
+      const node = document.getElementById('reports');
+      const items = summary.items || [];
+      if (!items.length) {
+        node.innerHTML = '<article class="report-card"><h3>暂无结果</h3><div class="report-meta">运行检测后会在这里展示结果。</div></article>';
+        return;
+      }
+      node.innerHTML = items.map(item => `
+        <article class="report-card">
+          <h3>${esc(item.name || '-')}</h3>
+          <div class="report-meta">${esc(item.header || item.mtime || '')}</div>
+          <ul class="report-lines">
+            ${(item.summary_lines || []).map(line => `<li class="${String(line).includes('无问题') || String(line).includes('退出码：0') ? 'good' : 'bad'}">${esc(line)}</li>`).join('')}
+          </ul>
+        </article>
+      `).join('');
+    }
+
+    function renderLogs(job) {
+      logs.textContent = (job.logs && job.logs.length)
+        ? [...job.logs].reverse().join('\n')
+        : (job.error || '等待操作...');
+    }
+
+    function applyState(state) {
+      appState = state;
+      if (!localSelectedProjectId || localSelectedProjectId !== state.selected_project_id && !(state.projects || []).some(item => item.id === localSelectedProjectId)) {
+        localSelectedProjectId = state.selected_project_id || '';
+      }
+      const selected = state.selected_project || { profile: {}, monitor: {}, summary: {}, diagnostics: {} };
+      renderProjects(state.projects || [], localSelectedProjectId || state.selected_project_id || '');
+      hydrateSelected(selected);
+      renderOverview(selected, state.job || {});
+      renderEvents(selected.monitor || {});
+      renderCommitPanel(selected.monitor || {});
+      renderReports(selected.summary || {});
+      renderLogs(state.job || {});
+    }
+
+    async function refresh() {
+      try {
+        const projectId = selectedProjectId();
+        const suffix = projectId ? `?project_id=${encodeURIComponent(projectId)}` : '';
+        const state = await api(`/api/app-state${suffix}`);
+        applyState(state);
+      } catch (err) {
+        logs.textContent = err.message;
+      }
+    }
+
+    async function saveCurrentProject() {
+      try {
+        const data = await api('/api/settings', {
+          method: 'POST',
+          body: JSON.stringify(collectSettings()),
+        });
+        applyState(unpackState(data));
+      } catch (err) {
+        logs.textContent = err.message;
+      }
+    }
+
+    async function action(path, body = null) {
+      try {
+        const payload = body ? { ...body } : {};
+        if (!payload.project_id) payload.project_id = selectedProjectId();
+        const data = await api(path, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        if (data.state) applyState(data.state);
+        else await refresh();
+      } catch (err) {
+        logs.textContent = err.message;
+      }
+    }
+
+    addProjectBtn.onclick = () => action('/api/project/create');
+    deleteProjectBtn.onclick = () => {
+      const id = document.getElementById('id').value;
+      if (!id) return;
+      if (!window.confirm('删除当前项目后，它的监听配置和运行状态都会移除。继续吗？')) return;
+      action('/api/project/delete', { id });
+    };
+    startAllBtn.onclick = () => action('/api/projects/start-all');
+    stopAllBtn.onclick = () => action('/api/projects/stop-all');
+    saveBtn.onclick = () => saveCurrentProject();
+    baselineBtn.onclick = () => action('/api/monitor/baseline');
+    checkBtn.onclick = () => action('/api/monitor/check');
+    runBtn.onclick = () => action('/api/run');
+    runSendBtn.onclick = () => action('/api/run-and-send');
+    sendBtn.onclick = () => action('/api/send');
+    toggleMonitorBtn.onclick = async () => {
+      if (formDirty) await saveCurrentProject();
+      const wantStop = toggleMonitorBtn.textContent.includes('停止');
+      await action(wantStop ? '/api/monitor/stop' : '/api/monitor/start');
+    };
+
+    for (const id of fields) {
+      const node = document.getElementById(id);
+      node.addEventListener('input', () => {
+        if (id === 'runner_kind') updateModeSections();
+        markDirty();
+      });
+      node.addEventListener('change', () => {
+        if (id === 'runner_kind') updateModeSections();
+        markDirty();
+      });
+    }
+
+    refresh();
+    setInterval(refresh, 2000);
+  </script>
+</body>
+</html>

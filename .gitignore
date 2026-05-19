@@ -1,0 +1,19 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*.log
+
+# Local runtime state. These files may contain local paths, webhooks, accounts, or run history.
+wordgroup_projects.json
+wordgroup_monitor_store.json
+wordgroup_monitor_states/
+wordgroup_ui_users.json
+wordgroup_ui_service.stdout.log
+wordgroup_ui_service.stderr.log
+
+# Unity/project outputs
+Result/
+Temp/
+Library/
+Logs/
+

@@ -368,6 +368,37 @@
       color: var(--muted);
       font-size: 12px;
     }
+    .panel-head-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      min-width: 0;
+    }
+    .panel-head-actions .meta {
+      white-space: nowrap;
+    }
+    .mini-action {
+      min-height: 30px;
+      padding: 0 10px;
+      border-color: rgba(15, 111, 255, 0.22);
+      background: rgba(15, 111, 255, 0.07);
+      color: #174c93;
+      font-size: 12px;
+    }
+    .mini-action:hover {
+      border-color: rgba(15, 111, 255, 0.42);
+      background: rgba(15, 111, 255, 0.11);
+    }
+    .mini-action.secondary {
+      border-color: rgba(102, 112, 133, 0.22);
+      background: rgba(102, 112, 133, 0.07);
+      color: #40506b;
+    }
+    .mini-action.secondary:hover {
+      border-color: rgba(102, 112, 133, 0.42);
+      background: rgba(102, 112, 133, 0.11);
+    }
     .panel-body {
       padding: 14px 16px 16px;
     }
@@ -667,6 +698,9 @@
       .column-center, .column-right { grid-column: auto; }
       .stat-top { flex-direction: column; }
       .stat-badges { justify-content: flex-start; }
+      .panel-head-actions {
+        flex-wrap: wrap;
+      }
     }
   </style>
 </head>
@@ -883,7 +917,12 @@
         <article class="panel fill-panel">
           <div class="panel-head">
             <h2>实时日志</h2>
-            <div class="meta" id="logMeta">-</div>
+            <div class="panel-head-actions">
+              <button id="copyLogsBtn" class="mini-action" type="button">复制日志</button>
+              <button id="exportLogsBtn" class="mini-action" type="button">导出日志</button>
+              <button id="openLogsFolderBtn" class="mini-action secondary" type="button">打开文件夹</button>
+              <div class="meta" id="logMeta">-</div>
+            </div>
           </div>
           <div class="logs" id="logs">等待操作...</div>
         </article>
@@ -941,6 +980,9 @@
     const saveState = document.getElementById('saveState');
     const subtitle = document.getElementById('subtitle');
     const logs = document.getElementById('logs');
+    const copyLogsBtn = document.getElementById('copyLogsBtn');
+    const exportLogsBtn = document.getElementById('exportLogsBtn');
+    const openLogsFolderBtn = document.getElementById('openLogsFolderBtn');
 
     let appState = null;
     let localSelectedProjectId = '';
@@ -1285,6 +1327,90 @@
         : (job.error || '等待操作...');
     }
 
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return;
+        } catch (err) {
+          // Fall back to the textarea path below when browser permission blocks Clipboard API.
+        }
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      if (!ok) throw new Error('复制失败');
+    }
+
+    function selectLogsText() {
+      const range = document.createRange();
+      range.selectNodeContents(logs);
+      const selection = window.getSelection();
+      if (!selection) return false;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    }
+
+    async function copyLogs() {
+      const text = (logs.textContent || '').trim();
+      const original = '复制日志';
+      if (!text) return;
+      try {
+        await copyText(text);
+        copyLogsBtn.textContent = '已复制';
+      } catch (err) {
+        copyLogsBtn.textContent = selectLogsText() ? '已选中' : '复制失败';
+      }
+      window.setTimeout(() => {
+        copyLogsBtn.textContent = original;
+      }, 1600);
+    }
+
+    function flashButton(button, label) {
+      const original = button.textContent;
+      button.textContent = label;
+      window.setTimeout(() => {
+        button.textContent = original;
+      }, 1800);
+    }
+
+    async function exportLogs() {
+      try {
+        const data = await api('/api/logs/export', {
+          method: 'POST',
+          body: JSON.stringify({ project_id: selectedProjectId() }),
+        });
+        flashButton(exportLogsBtn, '已导出');
+        logs.textContent = `[导出][${new Date().toLocaleTimeString()}]日志已导出：${data.path}\n` + (logs.textContent || '');
+      } catch (err) {
+        flashButton(exportLogsBtn, '导出失败');
+        logs.textContent = err.message;
+      }
+    }
+
+    async function openLogsFolder() {
+      try {
+        await api('/api/logs/open-folder', {
+          method: 'POST',
+          body: JSON.stringify({ project_id: selectedProjectId() }),
+        });
+        flashButton(openLogsFolderBtn, '已打开');
+      } catch (err) {
+        flashButton(openLogsFolderBtn, '打开失败');
+        logs.textContent = err.message;
+      }
+    }
+
     function applyState(state) {
       appState = state;
       if (!localSelectedProjectId || localSelectedProjectId !== state.selected_project_id && !(state.projects || []).some(item => item.id === localSelectedProjectId)) {
@@ -1339,6 +1465,9 @@
     }
 
     addProjectBtn.onclick = () => action('/api/project/create');
+    copyLogsBtn.onclick = copyLogs;
+    exportLogsBtn.onclick = exportLogs;
+    openLogsFolderBtn.onclick = openLogsFolder;
     deleteProjectBtn.onclick = () => {
       const id = document.getElementById('id').value;
       if (!id) return;

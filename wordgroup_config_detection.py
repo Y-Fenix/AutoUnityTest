@@ -143,9 +143,13 @@ public static class WordGroupConfigDetectionBatchRunner {
     private static string sReportPath;
     private static DateTime sStartedAt;
     private static double sStepStartedAt;
+    private static double sReportStableSince;
+    private static long sLastReportSize = -1;
     private static int sTimeoutSeconds = 1800;
 
     public static void RunAllAndQuit() {
+        Application.SetStackTraceLogType(UnityEngine.LogType.Log, UnityEngine.StackTraceLogType.None);
+        Application.SetStackTraceLogType(UnityEngine.LogType.Warning, UnityEngine.StackTraceLogType.None);
         sResultDir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "Result"));
         Directory.CreateDirectory(sResultDir);
         sTimeoutSeconds = ParseIntArg("--timeout-seconds", 1800);
@@ -164,8 +168,11 @@ public static class WordGroupConfigDetectionBatchRunner {
 
         var check = Checks[sIndex];
         sReportPath = Path.Combine(sResultDir, check.ReportFile);
+        TryDelete(sReportPath);
         sStartedAt = DateTime.Now.AddSeconds(-2);
         sStepStartedAt = EditorApplication.timeSinceStartup;
+        sReportStableSince = -1;
+        sLastReportSize = -1;
 
         Debug.Log($"[WordGroupConfigDetectionBatchRunner] start {check.Name}");
         try {
@@ -180,7 +187,7 @@ public static class WordGroupConfigDetectionBatchRunner {
     private static void Update() {
         if (!string.IsNullOrEmpty(sReportPath) && File.Exists(sReportPath)) {
             var info = new FileInfo(sReportPath);
-            if (info.LastWriteTime >= sStartedAt && IsReportComplete(sReportPath)) {
+            if (info.LastWriteTime >= sStartedAt && IsReportComplete(sReportPath) && IsReportStable(info)) {
                 Debug.Log($"[WordGroupConfigDetectionBatchRunner] completed {Checks[sIndex].Name}: {sReportPath}");
                 StartNext();
                 return;
@@ -194,10 +201,25 @@ public static class WordGroupConfigDetectionBatchRunner {
         }
     }
 
+    private static bool IsReportStable(FileInfo info) {
+        if (info.Length <= 0) {
+            return false;
+        }
+        if (info.Length != sLastReportSize) {
+            sLastReportSize = info.Length;
+            sReportStableSince = EditorApplication.timeSinceStartup;
+            return false;
+        }
+        return sReportStableSince >= 0 && EditorApplication.timeSinceStartup - sReportStableSince >= 0.5d;
+    }
+
     private static bool IsReportComplete(string path) {
         try {
             var text = File.ReadAllText(path);
-            return text.Contains("问题汇总") && text.Contains("问题详情");
+            if (text.Contains("问题汇总") && text.Contains("问题详情")) {
+                return true;
+            }
+            return text.Contains("检测完成") || text.Trim().Length > 0;
         } catch {
             return false;
         }
@@ -211,6 +233,15 @@ public static class WordGroupConfigDetectionBatchRunner {
             }
         }
         return fallback;
+    }
+
+    private static void TryDelete(string path) {
+        try {
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path)) {
+                File.Delete(path);
+            }
+        } catch {
+        }
     }
 }
 '''
@@ -261,6 +292,8 @@ public static class WordGroupConfigDetectionEditorBridge {
     private static string sReportPath = string.Empty;
     private static DateTime sStepStartedAt;
     private static double sStepStartedSince;
+    private static double sReportStableSince;
+    private static long sLastReportSize = -1;
     private static int sTimeoutSeconds = 1800;
 
     public static bool IsAutomationActive { get; private set; }
@@ -334,6 +367,8 @@ public static class WordGroupConfigDetectionEditorBridge {
         TryDelete(sReportPath);
         sStepStartedAt = DateTime.Now.AddSeconds(-1);
         sStepStartedSince = EditorApplication.timeSinceStartup;
+        sReportStableSince = -1;
+        sLastReportSize = -1;
         WriteStatus(sActiveRequestId, "running", check.Key, check.Name, "开始 " + check.Name);
 
         try {
@@ -352,7 +387,7 @@ public static class WordGroupConfigDetectionEditorBridge {
 
         if (File.Exists(sReportPath)) {
             var info = new FileInfo(sReportPath);
-            if (info.LastWriteTime >= sStepStartedAt && IsReportComplete(sReportPath)) {
+            if (info.LastWriteTime >= sStepStartedAt && IsReportComplete(sReportPath) && IsReportStable(info)) {
                 var check = Checks[Mathf.Clamp(sIndex, 0, Checks.Length - 1)];
                 WriteStatus(sActiveRequestId, "running", check.Key, check.Name, check.Name + " 已完成");
                 StartNext();
@@ -366,10 +401,25 @@ public static class WordGroupConfigDetectionEditorBridge {
         }
     }
 
+    private static bool IsReportStable(FileInfo info) {
+        if (info.Length <= 0) {
+            return false;
+        }
+        if (info.Length != sLastReportSize) {
+            sLastReportSize = info.Length;
+            sReportStableSince = EditorApplication.timeSinceStartup;
+            return false;
+        }
+        return sReportStableSince >= 0 && EditorApplication.timeSinceStartup - sReportStableSince >= 0.5d;
+    }
+
     private static bool IsReportComplete(string path) {
         try {
             var text = File.ReadAllText(path);
-            return text.Contains("问题汇总") && text.Contains("问题详情");
+            if (text.Contains("问题汇总") && text.Contains("问题详情")) {
+                return true;
+            }
+            return text.Contains("检测完成") || text.Trim().Length > 0;
         } catch {
             return false;
         }
@@ -602,6 +652,43 @@ def job_state_for(project_id: str = "", project_name: str = "", runner_kind: str
         if runner_kind and not state.runner_kind:
             state.runner_kind = runner_kind
         return state
+
+
+def exported_logs_dir() -> pathlib.Path:
+    return pathlib.Path.home() / "Downloads" / "AutoUnityTestLogs"
+
+
+def safe_filename_part(value: str, fallback: str = "project") -> str:
+    cleaned = re.sub(r"[^0-9A-Za-z._-]+", "_", str(value or "").strip())
+    cleaned = cleaned.strip("._-")
+    return cleaned[:80] or fallback
+
+
+def export_project_logs(project_id: str, project_name: str = "") -> pathlib.Path:
+    state = job_state_for(project_id)
+    snapshot = state.snapshot()
+    logs = list(snapshot.get("logs") or [])
+    lines = list(reversed(logs)) if logs else [str(snapshot.get("error") or "暂无日志。")]
+    folder = exported_logs_dir()
+    folder.mkdir(parents=True, exist_ok=True)
+    display_name = project_name or str(snapshot.get("project_name") or project_id or "project")
+    filename = f"{safe_filename_part(display_name)}_{datetime.now():%Y%m%d_%H%M%S}.log"
+    path = folder / filename
+    content = "\n".join([
+        f"项目：{display_name or '-'}",
+        f"导出时间：{datetime.now():%Y-%m-%d %H:%M:%S}",
+        f"运行状态：{'运行中' if snapshot.get('running') else '空闲'}",
+        f"开始时间：{snapshot.get('started_at') or '-'}",
+        f"结束时间：{snapshot.get('finished_at') or '-'}",
+        f"退出码：{snapshot.get('exit_code') if snapshot.get('exit_code') is not None else '-'}",
+        "",
+        "实时日志",
+        "-" * 80,
+        *lines,
+        "",
+    ])
+    path.write_text(content, encoding="utf-8")
+    return path
 
 
 def build_ui_defaults(args: argparse.Namespace) -> dict[str, Any]:
@@ -1801,9 +1888,6 @@ def tail_unity_log(
         "failed",
         "aborting",
         "licens",
-        "compile",
-        "reload",
-        "import",
         "检测",
         "报告",
     )
@@ -1860,7 +1944,13 @@ def tail_unity_log(
             if any(signature in line for signature in IMAGE_STUCK_SIGNATURES):
                 monitor.note_image_stuck_line(line)
 
-            if any(word in lower for word in important_words):
+            is_timing_summary = (
+                "asset pipeline refresh" in lower
+                or "compilescripts:" in lower
+                or "scripting: domain reloads" in lower
+                or "domain reload profiling:" in lower
+            )
+            if any(word in lower for word in important_words) or is_timing_summary:
                 state.add_log_event("Unity", line)
 
         time.sleep(1)
@@ -2824,6 +2914,30 @@ class WebHandler(BaseHTTPRequestHandler):
             result = send_feishu(str(settings.get("webhook") or self.server.args.webhook), summary)  # type: ignore[attr-defined]
             self.send_json(result, status=200 if result.get("ok") else 500)
             return
+        if path == "/api/logs/export":
+            try:
+                payload = self.read_json()
+                project_id = str(payload.get("project_id") or "")
+                selected = app.selected_snapshot(project_id)
+                profile = selected.get("profile") or {}
+                output_path = export_project_logs(str(profile.get("id") or project_id), str(profile.get("name") or ""))
+            except Exception as exc:
+                self.send_json({"ok": False, "error": str(exc)}, status=500)
+                return
+            self.send_json({"ok": True, "path": str(output_path), "folder": str(output_path.parent)})
+            return
+        if path == "/api/logs/open-folder":
+            try:
+                folder = exported_logs_dir()
+                folder.mkdir(parents=True, exist_ok=True)
+                completed = subprocess.run(["open", str(folder)], capture_output=True, text=True)
+                if completed.returncode != 0:
+                    raise RuntimeError((completed.stderr or completed.stdout or "打开文件夹失败").strip())
+            except Exception as exc:
+                self.send_json({"ok": False, "error": str(exc)}, status=500)
+                return
+            self.send_json({"ok": True, "folder": str(folder)})
+            return
         if path == "/api/settings":
             try:
                 payload = self.read_json()
@@ -3025,8 +3139,6 @@ def ui_service_program_arguments(args: argparse.Namespace) -> list[str]:
         ui_host_value(args),
         "--ui-users-file",
         str(getattr(args, "ui_users_file", str(UI_USERS_PATH))),
-        "--webhook",
-        str(getattr(args, "webhook", DEFAULT_WEBHOOK)),
         "--timeout-seconds",
         str(int(getattr(args, "timeout_seconds", 1800) or 1800)),
         "--process-timeout-seconds",
@@ -3038,12 +3150,6 @@ def ui_service_program_arguments(args: argparse.Namespace) -> list[str]:
     unity_path = str(getattr(args, "unity_path", "") or "").strip()
     if unity_path:
         argv.extend(["--unity-path", unity_path])
-    username = str(getattr(args, "ui_username", "") or "").strip()
-    password = str(getattr(args, "ui_password", "") or "").strip()
-    if username:
-        argv.extend(["--ui-username", username])
-    if password:
-        argv.extend(["--ui-password", password])
     if getattr(args, "insecure_no_auth", False):
         argv.append("--insecure-no-auth")
     if getattr(args, "keep_runner", False):
@@ -3052,6 +3158,18 @@ def ui_service_program_arguments(args: argparse.Namespace) -> list[str]:
 
 
 def build_service_plist(args: argparse.Namespace) -> dict[str, Any]:
+    environment_variables = {
+        "PYTHONUNBUFFERED": "1",
+    }
+    webhook = str(getattr(args, "webhook", DEFAULT_WEBHOOK) or "").strip()
+    if webhook:
+        environment_variables["FEISHU_WEBHOOK"] = webhook
+    username = str(getattr(args, "ui_username", "") or "").strip()
+    if username:
+        environment_variables["WORDGROUP_UI_USERNAME"] = username
+    password = str(getattr(args, "ui_password", "") or "").strip()
+    if password:
+        environment_variables["WORDGROUP_UI_PASSWORD"] = password
     return {
         "Label": SERVICE_LABEL,
         "ProgramArguments": ui_service_program_arguments(args),
@@ -3061,9 +3179,7 @@ def build_service_plist(args: argparse.Namespace) -> dict[str, Any]:
         "ProcessType": "Interactive",
         "StandardOutPath": str(SERVICE_STDOUT_PATH),
         "StandardErrorPath": str(SERVICE_STDERR_PATH),
-        "EnvironmentVariables": {
-            "PYTHONUNBUFFERED": "1",
-        },
+        "EnvironmentVariables": environment_variables,
     }
 
 

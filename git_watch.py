@@ -37,10 +37,23 @@ def normalize_changed_files(files: list[str]) -> list[str]:
     return result
 
 
+def iter_pattern_variants(pattern: str) -> list[str]:
+    variants = [pattern]
+    collapsed = pattern
+    while "**/" in collapsed:
+        collapsed = collapsed.replace("**/", "", 1)
+        if collapsed not in variants:
+            variants.append(collapsed)
+    return variants
+
+
 def match_path_pattern(file: str, pattern: str) -> bool:
-    if fnmatch.fnmatch(file, pattern):
-        return True
-    return not pattern.startswith("/") and fnmatch.fnmatch(file, f"*/{pattern}")
+    for candidate in iter_pattern_variants(pattern):
+        if fnmatch.fnmatch(file, candidate):
+            return True
+        if not candidate.startswith("/") and fnmatch.fnmatch(file, f"*/{candidate}"):
+            return True
+    return False
 
 
 def filter_watched_files(files: list[str], include_raw: str, ignore_raw: str) -> list[str]:

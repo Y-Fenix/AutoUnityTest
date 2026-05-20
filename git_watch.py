@@ -37,14 +37,20 @@ def normalize_changed_files(files: list[str]) -> list[str]:
     return result
 
 
+def match_path_pattern(file: str, pattern: str) -> bool:
+    if fnmatch.fnmatch(file, pattern):
+        return True
+    return not pattern.startswith("/") and fnmatch.fnmatch(file, f"*/{pattern}")
+
+
 def filter_watched_files(files: list[str], include_raw: str, ignore_raw: str) -> list[str]:
-    include_patterns = split_patterns(include_raw) or [DEFAULT_WATCH_PATTERNS]
+    include_patterns = split_patterns(include_raw) or split_patterns(DEFAULT_WATCH_PATTERNS)
     ignore_patterns = split_patterns(ignore_raw)
     matched: list[str] = []
     for file in normalize_changed_files(files):
-        if ignore_patterns and any(fnmatch.fnmatch(file, pattern) for pattern in ignore_patterns):
+        if ignore_patterns and any(match_path_pattern(file, pattern) for pattern in ignore_patterns):
             continue
-        if any(fnmatch.fnmatch(file, pattern) for pattern in include_patterns):
+        if any(match_path_pattern(file, pattern) for pattern in include_patterns):
             matched.append(file)
     return matched
 
@@ -468,7 +474,7 @@ class GitWatchController:
                         self._push_event(
                             self._event(
                                 "info",
-                                "检测到新提交，但未命中 CSV 规则",
+                                "检测到新提交，但未命中监听规则",
                                 f"{head_info.get('short_commit', head_commit[:8])} {head_info.get('subject', '')}".strip(),
                                 commit=head_commit,
                                 files=changed_files[:20],

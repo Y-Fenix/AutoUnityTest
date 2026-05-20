@@ -1,3 +1,3 @@
 #!/bin/zsh
 cd "$(dirname "$0")"
-./查看服务器状态.command
+./服务器\ ON.command

@@ -21,7 +21,7 @@ if [ -n "$existing_pid" ]; then
   exit 0
 fi
 
-python3 wordgroup_config_detection.py ui --no-open --port "$PORT" --host 127.0.0.1 --ui-users-file= >> "$STDOUT_LOG" 2>> "$STDERR_LOG" &!
+/usr/bin/nohup python3 wordgroup_config_detection.py ui --no-open --port "$PORT" --host 127.0.0.1 --ui-users-file= >> "$STDOUT_LOG" 2>> "$STDERR_LOG" &
 server_pid=$!
 echo "$server_pid" > "$PID_FILE"
 

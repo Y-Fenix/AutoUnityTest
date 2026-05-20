@@ -320,6 +320,10 @@
       padding-right: 4px;
       overflow: hidden;
     }
+    .column-center {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
     .column::-webkit-scrollbar,
     .project-list::-webkit-scrollbar,
     .panel-scroll::-webkit-scrollbar,
@@ -350,6 +354,14 @@
       min-height: 0;
       display: flex;
       flex-direction: column;
+    }
+    .panel.log-panel {
+      position: sticky;
+      top: 0;
+      z-index: 8;
+      flex: 0 0 clamp(270px, 36vh, 430px);
+      min-height: 270px;
+      background: rgba(255, 255, 255, 0.96);
     }
     .panel-head {
       display: flex;
@@ -894,6 +906,19 @@
           </div>
         </article>
 
+        <article class="panel fill-panel log-panel">
+          <div class="panel-head">
+            <h2>实时日志</h2>
+            <div class="panel-head-actions">
+              <button id="copyLogsBtn" class="mini-action" type="button">复制日志</button>
+              <button id="exportLogsBtn" class="mini-action" type="button">导出日志</button>
+              <button id="openLogsFolderBtn" class="mini-action secondary" type="button">打开文件夹</button>
+              <div class="meta" id="logMeta">-</div>
+            </div>
+          </div>
+          <div class="logs" id="logs">等待操作...</div>
+        </article>
+
         <article class="panel">
           <div class="panel-head">
             <h2>最近命中</h2>
@@ -914,18 +939,6 @@
           </div>
         </article>
 
-        <article class="panel fill-panel">
-          <div class="panel-head">
-            <h2>实时日志</h2>
-            <div class="panel-head-actions">
-              <button id="copyLogsBtn" class="mini-action" type="button">复制日志</button>
-              <button id="exportLogsBtn" class="mini-action" type="button">导出日志</button>
-              <button id="openLogsFolderBtn" class="mini-action secondary" type="button">打开文件夹</button>
-              <div class="meta" id="logMeta">-</div>
-            </div>
-          </div>
-          <div class="logs" id="logs">等待操作...</div>
-        </article>
       </section>
 
       <section class="column column-right">

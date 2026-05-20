@@ -3137,13 +3137,16 @@ def ui_service_program_arguments(args: argparse.Namespace) -> list[str]:
         str(int(getattr(args, "port", 8765) or 8765)),
         "--host",
         ui_host_value(args),
-        "--ui-users-file",
-        str(getattr(args, "ui_users_file", str(UI_USERS_PATH))),
         "--timeout-seconds",
         str(int(getattr(args, "timeout_seconds", 1800) or 1800)),
         "--process-timeout-seconds",
         str(int(getattr(args, "process_timeout_seconds", 0) or 0)),
     ]
+    users_file = str(getattr(args, "ui_users_file", str(UI_USERS_PATH)) or "")
+    if users_file:
+        argv.extend(["--ui-users-file", users_file])
+    else:
+        argv.append("--ui-users-file=")
     project_path = str(getattr(args, "project_path", "") or "").strip()
     if project_path:
         argv.extend(["--project-path", project_path])
@@ -3305,7 +3308,10 @@ def wait_for_service_http(port: int, timeout_seconds: float = 8.0) -> bool:
 def ensure_background_service(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
     status = background_service_status()
     if status.get("loaded") and service_matches_args(status, args):
-        return status, False
+        port_text = str(status.get("port") or getattr(args, "port", 8765) or 8765)
+        port = int(port_text) if port_text.isdigit() else int(getattr(args, "port", 8765) or 8765)
+        if wait_for_service_http(port, timeout_seconds=2.0):
+            return status, False
     return install_background_service(args), True
 
 
@@ -3528,7 +3534,12 @@ def main(argv: list[str] | None = None) -> int:
             status, installed_now = ensure_background_service(args)
             port = int(status.get("port") or args.port or 8765)
             local_url = ui_local_url(port)
-            ready = True if not installed_now else wait_for_service_http(port)
+            ready = wait_for_service_http(port)
+            if not ready:
+                raise RuntimeError(
+                    f"后台服务已提交启动，但 {local_url} 暂不可访问。"
+                    f"请查看错误日志：{SERVICE_STDERR_PATH}"
+                )
             if installed_now:
                 print("后台服务已启动。")
             else:

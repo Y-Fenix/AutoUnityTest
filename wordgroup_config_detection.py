@@ -1990,7 +1990,10 @@ def tail_unity_log(
             elif "aborting batchmode due to failure" in lower:
                 monitor.set_fatal("Aborting batchmode due to failure.")
             elif "this should not be called in batch mode" in lower or "displaydialog" in lower:
-                monitor.set_fatal("Unity batchmode 被编辑器弹窗阻塞。")
+                # Unity logs this for auto-cancelled EditorUtility.DisplayDialog calls in batchmode.
+                # Treat it as fatal only if the active check stops making progress and hits the
+                # idle watchdog below.
+                pass
             elif "argumentnullexception" in lower:
                 monitor.set_fatal(line)
             elif "nullreferenceexception" in lower:

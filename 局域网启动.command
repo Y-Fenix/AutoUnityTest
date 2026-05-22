@@ -15,7 +15,7 @@ if [ -n "$existing_pid" ]; then
   echo "$existing_pid" > "$PID_FILE"
   echo "局域网服务器已在运行，PID：$existing_pid"
 else
-  /usr/bin/nohup python3 wordgroup_config_detection.py ui --no-open --share --port "$PORT" >> "$STDOUT_LOG" 2>> "$STDERR_LOG" &
+  /usr/bin/nohup python3 wordgroup_config_detection.py ui --no-open --share --port "$PORT" </dev/null >> "$STDOUT_LOG" 2>> "$STDERR_LOG" &!
   server_pid=$!
   echo "$server_pid" > "$PID_FILE"
 
